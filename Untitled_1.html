@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Untitled_1</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<script type="text/javascript">
+		var canvas = document.createElement("canvas");
+		var ctx = canvas.getContext("2d");
+
+		canvas.setAttribute("width", "800");
+		canvas.setAttribute("height", "600");
+		document.body.appendChild(canvas);
+
+		class Node {
+			constructor() {
+				this.parent = null;
+				this.children = [];
+			}
+
+			addChild(node) {
+				this.children.push(node);
+				node.parent = this;
+			}
+		}
+
+		class Scene extends Node {
+			constructor() {
+				super();
+				this.gravity = {x: 0,y: 0};
+			}
+
+			draw() {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				this.children.forEach((el) => {
+					draw(el);
+				})
+				function draw(node) {
+					if (node.draw) {node.draw()}
+					node.children.forEach((el) => {
+						draw(el);
+					})
+				}
+			}
+
+			update() {
+				this.children.forEach((el) => {
+					update(el);
+				})
+				function update(node) {
+					if (node.physicsBody) {
+						node.physicsBody.acceleration = {x: 0, y: 0};
+						node.physicsBody.getForce({x: 0, y: 10 * node.physicsBody.mass});
+						node.physicsBody.update();
+					}
+					node.children.forEach((el) => {
+						update(el);
+					})
+				}
+			}
+		}
+
+		class SpriteNode extends Node{
+			constructor() {
+				super();
+				this.position = {x: 0, y: 0};
+				this.angle = 0;
+				this.physicsBody = null;
+			}
+
+			setPhysicsBody(physicsBody) {
+				this.physicsBody = physicsBody;
+				this.physicsBody.parent = this;
+			}
+		}
+
+		class ShapeNode extends SpriteNode {
+			constructor(shape, color = "black") {
+				super();
+				this.shape = shape;
+				this.color = color;
+			}
+
+			setPosition(position) {
+				this.position = position;
+			}
+
+			setAngle(angle) {
+				this.angle = angle;
+			}
+
+			draw() {
+				let nodeStack = [this];
+				let x = 0;
+				let y = 0;
+				let angle = 0;
+
+				while (nodeStack[nodeStack.length - 1].parent != null) {
+					nodeStack.push(nodeStack[nodeStack.length - 1].parent);
+				}
+				while (nodeStack.length != 0) {
+					if (nodeStack[nodeStack.length - 1].position){
+						x += nodeStack[nodeStack.length - 1].position.x;
+						y += nodeStack[nodeStack.length - 1].position.y;
+					}
+					if (nodeStack[nodeStack.length - 1].angle){
+						angle += nodeStack[nodeStack.length - 1].angle
+					}
+					nodeStack.pop();
+				}
+				ctx.setFillStyle = this.color;
+				ctx.rotate(angle);
+				ctx.fillRect(x - this.shape.width/2, y - this.shape.height/2, this.shape.width, this.shape.height);
+				ctx.rotate(0);
+			}
+		}
+
+		class Rectangle {
+			constructor(height, width) {
+				this.height = height;
+				this.width = width;
+			}
+		}
+
+		class Pin {
+		}
+
+		class PhysicsBody{
+			constructor(shape) {
+				this.shape = shape;
+				this.parent = null;
+				this.velocity = {x:0, y:0};
+				this.acceleration = {x:0, y:0};
+				this.mass = this.shape.width * this.shape.height;
+			}
+			update() {
+				this.velocity.x += this.acceleration.x;
+				this.velocity.y += this.acceleration.y;
+
+				this.parent.position.x += this.velocity.x/30;
+				this.parent.position.y += this.velocity.y/30;
+			}
+			getForce(force) {
+				this.acceleration.x += force.x/this.mass;
+				this.acceleration.y += force.y/this.mass;
+			}
+		}
+
+		var SCENE = new Scene();
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		function init() {
+			var box1 = new ShapeNode(new Rectangle(100, 100));
+			var box2 = new ShapeNode(new Rectangle(100, 100), "orange");
+
+			box1.setPhysicsBody(new PhysicsBody(box1.shape));
+			box1.physicsBody.velocity.x = 200;
+
+			SCENE.addChild(box1);
+			SCENE.addChild(box2);
+		}
+
+		function render() {
+			SCENE.draw();
+			SCENE.update();
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>
