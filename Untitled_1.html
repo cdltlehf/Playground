@@ -36,7 +36,11 @@
 		}
 
 		function init() {
-			SCENE.gravity = new Vector(0, 360);
+			SCENE.gravity = new Vector(0, 200);
+		}
+
+		function render() {
+
 			let grey = Math.floor(Math.random()*(128+64));
 			let color = 'rgb(' + grey + ', ' + grey + ', ' + grey + ')';
 			let shape = Math.random()>0.5?new Rectangle(Math.random() * 10+10, Math.random() * 10+10):new Circle(Math.random()*5+5)
@@ -52,10 +56,7 @@
 			box.physicsBody.applyAngularImpulse(Math.random()*1000);
 
 			SCENE.addChild(box);
-		}
-
-		function render() {
-			SCENE.draw();
+			
 			SCENE.update();
 			window.requestAnimationFrame(render);
 		}
