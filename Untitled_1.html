@@ -19,16 +19,10 @@
 <body>
 	<script src="./lib/playground.js"></script>
 	<script type="text/javascript">
-		var canvas = document.createElement("canvas");
-		var ctx = canvas.getContext("2d");
 
-		var SCENE = new Scene(ctx);
-		var WIDTH = 800;
-		var HEIGHT = 600;
+		var scene = new Scene(800, 600);
 
-		canvas.setAttribute("width", WIDTH);
-		canvas.setAttribute("height", HEIGHT);
-		document.body.appendChild(canvas);
+		document.body.appendChild(scene.canvas);
 
 		window.onload = function() {
 			init();
@@ -36,28 +30,26 @@
 		}
 
 		function init() {
-			SCENE.gravity = new Vector(0, 200);
+			scene.physicsWorld.gravity = new Vector(0, 200);
 		}
 
 		function render() {
-
 			let grey = Math.floor(Math.random()*(128+64));
 			let color = 'rgb(' + grey + ', ' + grey + ', ' + grey + ')';
 			let shape = Math.random()>0.5?new Rectangle(Math.random() * 10+10, Math.random() * 10+10):new Circle(Math.random()*5+5)
 			let box = new ShapeNode(shape, color);
-			box.position.x = Math.random() * WIDTH;
+			box.position.x = Math.random() * scene.width;
 			box.position.y = 0;
 			box.setPhysicsBody(new PhysicsBody(box.shape));
 
 			box.angle = Math.random()*Math.PI*2
-			let force = (new Vector((Math.random()-0.5), 0)).multiplyScalar(2000*(Math.random()+3));
+			let impulse = (new Vector((Math.random()-0.5), 0)).multiplyScalar(2000*(Math.random()+3));
 			let position = new Vector((Math.random()-0.5)*20, (Math.random()-0.5)*20);
-			box.physicsBody.applyImpulse(force, position);
-			box.physicsBody.applyAngularImpulse(Math.random()*1000);
+			box.physicsBody.applyImpulse(impulse, position);
 
-			SCENE.addChild(box);
-			
-			SCENE.update();
+			scene.addChild(box);
+		
+			scene.update();
 			window.requestAnimationFrame(render);
 		}
 	</script>

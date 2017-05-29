@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Fields</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<script src="./lib/playground.js"></script>
+	<script type="text/javascript">
+
+		let scene = new Scene(800, 600);
+		document.body.appendChild(scene.canvas);
+
+		let graph = new GraphNode(100, 75, {min:0, max:100}, {min:-1, max:1});
+		graph.setPosition(700, 0);
+
+		let fieldNode;
+		let a;
+		let b;
+		let t = 0;
+
+		let listener;
+
+		let v = 50;
+
+		let f1 = 5.5;
+		let gamma1 = v/f1;
+
+		let f2 = 5;
+		let gamma2 = v/f2;
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		function init() {
+			fieldNode = new FieldNode(new ScalarField(800, 600));
+			a = new ShapeNode(new Point());
+			a.setPosition(scene.width/2, scene.height/2);
+			b = new ShapeNode(new Point());
+			b.setPosition(scene.width/2, scene.height/2);
+
+			listener = new ShapeNode(new Circle(3), "red");
+
+			a.setPhysicsBody(new PhysicsBody(a.shape));
+			b.setPhysicsBody(new PhysicsBody(b.shape));
+
+			graph.values.push([]);
+			for (let i = 0; i < graph.rangeX.max; i++) {
+				graph.values[0].push(0);
+			}
+
+			scene.addChild(fieldNode);
+			scene.addChild(a);
+			scene.addChild(b);
+			scene.addChild(listener);
+			scene.addChild(graph);
+		}
+
+		function render() {
+			let ap = a.position;
+			let bp = b.position;
+			let op = new Vector(0, 0);
+
+			listener.setPosition(scene.mouse.x, scene.mouse.y);
+
+			fieldNode.field.setValue((p) => {return Math.cos((p.distanceTo(ap)-t*v)/gamma1*Math.PI)*50/(p.distanceTo(ap))});
+			fieldNode.field.addValue((p) => {return Math.cos((p.distanceTo(bp)-t*v)/gamma2*Math.PI)*50/(p.distanceTo(bp))});
+
+			t += 1/30;
+
+			graph.values[0].push(fieldNode.field.value[listener.position.y][listener.position.x]);
+			graph.values[0].shift();
+
+			scene.update();
+			window.requestAnimationFrame(render);
+		}
+	</script>
+
+
+</body>
+</html>

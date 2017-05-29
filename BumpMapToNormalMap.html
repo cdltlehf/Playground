@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>BumpMapToNormalMap</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<script src="./lib/playground.js"></script>
+	<script type="text/javascript">
+
+		let scene = new Scene(800, 600);
+		document.body.appendChild(scene.canvas);
+
+		let bumpMap;
+		let normalMap;
+		let rendered;
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		function init() {
+			bumpMap = new FieldNode(new ScalarField(400, 300));
+			normalMap = new FieldNode(new VectorField(400, 300));
+			rendered = new FieldNode(new ScalarField(400, 300));
+
+			normalMap.setPosition(400, 0);
+			rendered.setPosition(400,300);
+
+			normalMap.field = bumpMap.field.getGradient();
+
+			scene.addChild(bumpMap);
+			scene.addChild(normalMap);
+			scene.addChild(rendered);
+		}
+
+		function render() {
+			if (scene.isMouseDown) {
+				bumpMap.field.setValue((p, v) => {
+					let value = 0;
+					let dis = p.distanceTo(scene.mouse);
+					if(dis < Math.PI*10) {
+						value = Math.cos(dis/10) + 1;
+					}
+					return Math.max(value * 1, v);
+				});
+			}
+			normalMap.field = bumpMap.field.getGradient();
+			normalMap.field.setValue((p, v) => {
+				return v.multiplyScalar(-1);
+			});
+			rendered.field.setValue((p) => {
+				let nv = normalMap.field.value[p.y][p.x];
+				let lv = new Vector(scene.mouse.x - 600, scene.mouse.y - 450);
+				lv.multiplyScalar(100/lv.length);
+
+				return (nv.x * lv.x + nv.y * lv.y)/100;
+			});
+			scene.update();
+			window.requestAnimationFrame(render);
+		}
+	</script>
+
+
+</body>
+</html>
