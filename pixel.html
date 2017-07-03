@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Untitled_1</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+	<script src="./lib/three.min.js"></script>
+	<script src="./lib/pixel.js"></script>
+</head>
+<body>
+	<script type="text/javascript">
+
+		var scene = new Scene(800, 600);
+
+		document.body.appendChild(scene.canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		function init() {
+			let chunk = new Chunk(0, 0);
+			scene.addChild(chunk);
+		}
+
+		function render() {
+			scene.update();
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>

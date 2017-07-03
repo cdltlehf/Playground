@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Untitled_2</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<script src="./lib/playground.js"></script>
+	<script type="text/javascript">
+
+		var scene = new Scene(800, 600);
+
+		document.body.appendChild(scene.canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		var points = [];
+
+		function init() {
+			let distance = 30;
+			let radius = 1;
+			let width = 100;
+			let height = 100;
+			let sqrt3 = Math.sqrt(3);
+
+			for (let i=0;i<height;i++) {
+				for (let j=0;j<width;j++) {
+					let point = new ShapeNode(new Circle(radius));
+					point.position.x = scene.width/2 + (j - width/2 + i%2/2) * distance;
+					point.position.y = scene.height/2 + (i - height/2) * distance * sqrt3/2;
+					points.push(point);
+					scene.addChild(point);
+				}
+			}
+		}
+
+		function render() {
+			var temp = [];
+			points.forEach(p => {
+				temp.push(p.position.clone());
+				let dis = (scene.mouse.clone().sub(p.position)).length;
+				let rad = 100;
+				if (dis < rad) {
+					p.position.add((p.position.clone().sub(scene.mouse)).setScalar(Math.cos(Math.PI/2*dis/rad)*rad/3));
+					dis = (scene.mouse.clone().sub(p.position)).length;
+					p.shape.r = 1 + 30/dis;
+				}
+			});
+			scene.update();
+			points.forEach((p, i) => {
+				p.position = temp[i];
+				p.shape.r = 1;
+			});
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>
