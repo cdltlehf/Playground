@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>BrokenMirror</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<img width="800" height="600" style="display:none;" src="./src/Something, somewhere went terribly wrong.psd" id="i">
+	<!--img height="660", width="880", style="display:none;" src="http://www.panicpr.nz/wp-content/uploads/2016/03/light-bulb-background-ultra-hd-wallpaper.jpg" id="i"-->
+	<script src="./lib/playground.js"></script>
+	<script type="text/javascript">
+		window.onload = function() {
+
+			let img = document.getElementById("i");
+
+			const WIDTH = img.width;
+			const HEIGHT = img.height;
+	
+			const IMG_WIDTH = Math.floor(WIDTH*1.1);
+			const IMG_HEIGHT = Math.floor(HEIGHT*1.1);
+	
+			let fakeScene;
+			let imgScene;
+			let scene;
+			let imgData;
+			let normalMap;
+
+			init();
+			render();
+
+			function addCrack(point) {
+				fakeScene.children = [];
+				let background = new ShapeNode(new Rectangle(WIDTH, HEIGHT), "rgb(128, 128, 128)");
+				background.setPosition(WIDTH/2,HEIGHT/2);
+				fakeScene.addChild(background);
+				let n1 = 8
+				let n2 = Math.ceil(Math.random()*80+8);
+				let n3 = Math.random() * Math.PI*2;
+				let thetas = [];
+				let points = [];
+				for (let j=0;j<n2;j++) {
+					thetas.push(j/n2*Math.PI*2+n3 + Math.random()*Math.PI/4);
+				}
+				for (let i = 0;i<n1;i++) {
+					points.push([]);
+					for (let j=0;j<n2;j++) {
+						theta = thetas[j];
+						let r = 3*Math.pow(i+1+Math.random(),3);
+						points[i].push(new Vector(point.x + Math.cos(theta)*r, point.y + Math.sin(theta)*r));
+						r = 3*Math.pow(i+1+Math.random(),3);
+						points[i].push(new Vector(point.x + Math.cos(theta)*r, point.y + Math.sin(theta)*r));
+					}
+				}
+				for (let i = 0;i<n1;i++) {
+					for (let j=0;j<n2;j++) {
+						let shape;
+						if (i == 0) {
+							shape = new ShapeNode(new Polygon([point, points[i][j*2], points[i][((j+1)%n2)*2+1]]));
+						} else {
+							shape = new ShapeNode(new Polygon([points[i-1][j*2], points[i-1][((j+1)%n2)*2+1], points[i][((j+1)%n2)*2+1], points[i][j*2]]));
+						}
+						let vector = Vector.getPolarVector(0.5 * 1/(i*i*i+0.2), Math.random()*Math.PI*2);
+						shape.color = "rgb(" + Math.floor((vector.x+0.5) * 255) + ", " + Math.floor((vector.y+0.5) * 255) + ", 128)"; 
+						vector = Vector.getPolarVector(10/(i*i*i+0.2), Math.random()*Math.PI*2);
+						shape.strokeColor = "rgb(" + Math.floor((vector.x+0.5) * 255) + ", " + Math.floor((vector.y+0.5) * 255) + ", 128)";
+						fakeScene.addChild(shape);
+					}
+				}
+				fakeScene.update();
+				let data = fakeScene.ctx.getImageData(0, 0, WIDTH, HEIGHT).data;
+				normalMap.field.addValue((p) => {
+					return new Vector(data[(p.y*WIDTH + p.x)*4]/255-0.5, data[(p.y*WIDTH + p.x)*4+1]/255-0.5);
+				});
+			}
+	
+			function init() {
+				imgScene = new Scene(IMG_WIDTH, IMG_HEIGHT);
+	
+				fakeScene = new Scene(WIDTH, HEIGHT);
+				scene = new Scene(WIDTH, HEIGHT);
+				document.body.appendChild(scene.canvas);
+	
+				imgScene.ctx.drawImage(document.getElementById("i"),0,0,IMG_WIDTH,IMG_HEIGHT);
+				imgData = imgScene.ctx.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT).data;
+				normalMap = new FieldNode(new VectorField(WIDTH, HEIGHT));
+				scene.addChild(normalMap);
+			}
+	
+			function render() {
+				if (scene.isClicked) {
+					addCrack(scene.mouse);
+				}
+				scene.update();
+				let resultData = scene.ctx.createImageData(WIDTH, HEIGHT);
+				for (let i=0;i<resultData.data.length;i+=4) {
+					let x = i/4%WIDTH;
+					let y = Math.floor(i/4/WIDTH);
+					let normal = normalMap.field.value[y][x];
+	
+					let j = ((x+(IMG_WIDTH-WIDTH)/2+Math.floor(normal.x*30+(scene.mouse.x-WIDTH/2)/20)) + (y+(IMG_HEIGHT-HEIGHT)/2+Math.floor(normal.y*30+(scene.mouse.y-HEIGHT/2)/20))*	IMG_WIDTH)*4;
+					//let j = ((x+WIDTH*0.05+Math.floor((scene.mouse.x-WIDTH/2)/20)) + (y+HEIGHT*0.05+Math.floor((scene.mouse.y-HEIGHT/2)/20))*IMG_WIDTH)*4;
+					resultData.data[i] = imgData[j];
+					resultData.data[i+1] = imgData[j+1];
+					resultData.data[i+2] = imgData[j+2];
+					resultData.data[i+3] = imgData[j+3];
+				}
+				scene.ctx.putImageData(resultData, 0, 0);
+				//scene.update();
+				window.requestAnimationFrame(render);
+			}
+		}
+
+	</script>
+
+
+</body>
+</html>
