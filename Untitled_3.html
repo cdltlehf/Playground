@@ -73,8 +73,7 @@
 				let dis = (scene.mouse.clone().sub(p)).length;
 				let rad = 100;
 				if (dis < rad) {
-					p.add((p.clone().sub(scene.mouse)).setScalar(Math.cos(Math.PI/2*dis/rad)*rad/5));
-					dis = (scene.mouse.clone().sub(p)).length;
+					p.copy((p.clone().sub(scene.mouse)).setScalar(Math.asin(dis/rad)/(Math.PI/2)*rad));
 				}
 			});
 			scene.update();

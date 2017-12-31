@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Neural Net</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+			image-rendering: optimizeSpeed;             /* FUCK SMOOTHING, GIVE ME SPEED  */
+    	image-rendering: -moz-crisp-edges;          /* Firefox                        */
+    	image-rendering: -o-crisp-edges;            /* Opera                          */
+    	image-rendering: -webkit-optimize-contrast; /* Chrome (and eventually Safari) */
+    	image-rendering: optimize-contrast;         /* CSS3 Proposed                  */
+   	  -ms-interpolation-mode: nearest-neighbor;   /* IE8+                           */
+		}
+	</style>
+</head>
+<body>
+	<div id="canvas_container"></div>
+	<script type="text/javascript">
+
+		function random_normal(shape, mean=0.0, stddev=1.0) {
+			if (shape.length==0) {
+    		var u = 1 - Math.random();
+    		var v = 1 - Math.random();
+    		return (Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v ))*stddev + mean;
+			} else {
+				var arr = []
+				for (let i = 0; i<shape[0]; i++) {
+					arr.push(random_normal(shape.slice(1),mean,stddev));
+				}
+				return arr;
+			}
+		}
+
+		function ones(shape) {
+			if (shape.length==0) {
+    		return 1;
+			} else {
+				var arr = []
+				for (let i = 0; i<shape[0]; i++) {
+					arr.push(ones(shape.slice(1)));
+				}
+				return arr;
+			}
+		}
+
+		function zeros(shape) {
+			if (shape.length==0) {
+    		return 0;
+			} else {
+				var arr = []
+				for (let i = 0; i<shape[0]; i++) {
+					arr.push(zeros(shape.slice(1)));
+				}
+				return arr;
+			}
+		}
+
+		function sigmoid(i_arr) {
+			if (!Array.isArray(i_arr)) {
+				return 1/(1 + Math.exp(-i_arr));
+			} else {
+				let o_arr = [];
+				for (let i=0;i<i_arr.length;i++) {
+					o_arr.push(sigmoid(i_arr[i]));
+				}
+				return o_arr;
+			}
+		}
+
+		function softmax(i_arr) {
+			let o_arr = [];
+			let sum = 0;
+			let max = -Infinity;
+			for (let i=0;i<i_arr.length;i++) {
+				if (max < i_arr[i]) {max = i_arr[i]};
+			}
+			for (let i=0;i<i_arr.length;i++) {
+				o_arr.push(Math.exp(i_arr[i] - max));
+				sum += o_arr[i]
+			}
+			for (let i=0;i<i_arr.length;i++) {
+				o_arr[i] /= sum;
+			}
+			return o_arr;
+		}
+
+		function relu(i_arr) {
+			if (!Array.isArray(i_arr)) {
+				return i_arr>0?i_arr:0;
+			} else {
+				let o_arr = [];
+				for (let i=0;i<i_arr.length;i++) {
+					o_arr.push(sigmoid(i_arr[i]));
+				}
+				return o_arr;
+			}
+		}
+
+		function matmul(a, b) {
+  		var aNumRows = a.length, aNumCols = a[0].length,
+      		bNumRows = b.length, bNumCols = b[0].length,
+      		m = new Array(aNumRows);  // initialize array of rows
+  		for (var r = 0; r < aNumRows; ++r) {
+    		m[r] = new Array(bNumCols); // initialize the current row
+    		for (var c = 0; c < bNumCols; ++c) {
+      		m[r][c] = 0;             // initialize the current cell
+      		for (var i = 0; i < aNumCols; ++i) {
+        		m[r][c] += a[r][i] * b[i][c];
+      		}
+    		}
+  		}
+  		return m;
+		}
+
+		function one_hot_encoding(arr) {
+			let max = -Infinity;
+			let flag = true;
+			for (let i=0;i<arr.length;i++) {
+				if (max < arr[i]) {max = arr[i]};
+			}
+			for (let i=0;i<arr.length;i++) {
+				if (max == arr[i] && flag) {
+					arr[i] = 1;
+					flag = false;
+				} else {
+					arr[i] = 0;
+				}
+			}
+			return arr;
+		}
+
+		class NeuralLayer {
+			constructor (inputNum, outputNum, hypothesisFunction = relu) {
+				this.inputNum = inputNum;
+				this.outputNum = outputNum;
+				this.hypothesisFunction = hypothesisFunction;
+
+				this.W = random_normal([inputNum, outputNum]);
+				this.b = random_normal([outputNum]);
+
+				this.nextLayer = undefined;
+				this.y_data = undefined;
+
+				this.input = [[]];
+
+				this.hypothesis = [[]];
+
+				this.gradient_W = [[[]]];
+				this.gradient_b = [[]];
+
+				this.error = [[]];
+			}
+
+			calc_hypothesis() {
+				let arr2 = matmul(this.input, this.W);
+				this.hypothesis.splice(0);
+
+				for (let i=0;i<this.input.length;i++) {
+					for (let j=0;j<this.outputNum;j++) {
+						arr2[i][j] += this.b[j];
+					}
+					this.hypothesis.push(this.hypothesisFunction(arr2[i]));
+				}
+			}
+
+			calc_error() {
+				let error;
+				if (this.hypothesisFunction == sigmoid) {
+					error = (e) => {return e*(1-e)};
+				} else if (this.hypothesisFunction == softmax) {
+					error = (e) => {return e*(1-e)};
+				} else if (this.hypothesisFunction == relu) {
+					error = (e) => {return e>0?0:1};
+				}
+				let arr = [];
+				for (let n=0;n<this.input.length;n++) {
+					let arr2 = [];
+					for (let j=0;j<this.outputNum;j++) {
+						if (this.nextLayer != undefined) {
+							let sum = 0;
+							for (let k=0;k<this.nextLayer.outputNum;k++) {
+								sum += this.nextLayer.error[n][k] * this.nextLayer.W[j][k] * error(this.hypothesis[n][j]);
+							}
+							arr2.push(sum);
+						} else {
+							arr2.push((this.hypothesis[n][j] - this.y_data[n][j]));
+						}
+					}
+					arr.push(arr2);
+				}
+				this.error = arr;
+			}
+
+			calc_gradient_W() {
+				let arr = [];
+				for (let i=0;i<this.inputNum;i++) {
+					let arr2 = [];
+					for (let j=0;j<this.outputNum;j++) {
+						let sum = 0;
+						for (let n=0;n<this.input.length;n++) {
+							sum += this.input[n][i] * this.error[n][j];
+						}
+						arr2.push(sum/this.input.length);
+					}
+					arr.push(arr2);
+				}
+				this.gradient_W = arr;
+			}
+
+			calc_gradient_b() {
+				let arr = [];
+				for (let j=0;j<this.outputNum;j++) {
+					let sum = 0;
+					for (let n=0;n<this.input.length;n++) {
+						sum += this.error[n][j];
+					}
+					arr.push(sum/this.input.length);
+				}
+				this.gradient_b = arr;
+			}
+
+			frontCalculate() {
+				this.calc_hypothesis();
+			}
+
+			backPropagate() {
+				this.calc_error();
+				this.calc_gradient_W();
+				this.calc_gradient_b();
+			}
+
+			train(learning_rate) {
+				for (let j=0; j<this.outputNum;j++) {
+					for (let i=0; i<this.inputNum; i++) {
+						this.W[i][j] -= learning_rate * this.gradient_W[i][j];
+					}
+					this.b[j] -= learning_rate * this.gradient_b[j];
+				}
+			}
+		}
+
+		class NeuralNet {
+			constructor(arr, x_data, y_data) {;
+				this.layers = [];
+
+				this.x_data = x_data;
+				this.y_data = y_data;
+
+				this._maxInputNum = Math.max.apply(null, arr);
+
+				for (let i=0;i<arr.length-1;i++) {
+					this.layers.push(new NeuralLayer(arr[i], arr[i+1]));
+				}
+
+				this.layers[0].input = this.x_data;
+				for (let i=1;i<this.layers.length;i++) {
+					this.layers[i].input = this.layers[i-1].hypothesis;
+				}
+
+				for (let i=0;i<this.layers.length-1;i++) {
+					this.layers[i].nextLayer = this.layers[i+1];
+				}
+				this.layers[this.layers.length-1].y_data = this.y_data;
+			}
+
+			frontCalculate() {
+				for(let i=0;i<this.layers.length;i++) {
+					this.layers[i].frontCalculate();
+				}
+			}
+
+			backPropagate() {
+				for(let i=this.layers.length-1;i>=0;i--) {
+					this.layers[i].backPropagate();
+				}
+			}
+
+			train(learning_rate) {
+				this.frontCalculate();
+				this.backPropagate();
+				for(let i=0;i<this.layers.length;i++) {
+					this.layers[i].train(learning_rate);
+				}
+			}
+
+			calc(input) {
+				this.layers[0].input = input;
+				this.frontCalculate();
+				let result = this.layers[this.layers.length-1].hypothesis.slice();
+				this.layers[0].input = this.x_data;
+				this.frontCalculate();
+				return result;
+			}
+
+			render() {
+				neuralNet.layers.forEach((e, n, arr) => {
+					for (let i=0;i<e.inputNum;i++) {
+						for (let j=0;j<e.outputNum;j++) {
+							if (e.W[i][j] != 0) {
+								ctx.strokeStyle = e.W[i][j]>0?"green":"red";
+								ctx.lineWidth = Math.log(Math.abs(e.W[i][j]) + 1);
+								ctx.beginPath();
+								ctx.moveTo(n/(arr.length)*(WIDTH*5/7)+WIDTH/7,(i+(this._maxInputNum-e.inputNum+1)/2)/(this._maxInputNum)*(HEIGHT*5/7)+HEIGHT/7);
+								ctx.lineTo((n+1)/(arr.length)*(WIDTH*5/7)+WIDTH/7, (j+(this._maxInputNum-e.outputNum+1)/2)/(this._maxInputNum)*(HEIGHT*5/7)+HEIGHT/7);
+								ctx.closePath();
+								ctx.stroke();
+							}
+						}
+					}
+					for (let j=0;j<e.outputNum;j++) {
+						if (e.b[j] != 0) {
+							ctx.strokeStyle = e.b[j]>0?"green":"red";
+							ctx.lineWidth = Math.log(Math.abs(e.b[j]) + 1);
+							ctx.beginPath();
+							ctx.moveTo((n+0.5)/(arr.length)*(WIDTH*5/7)+WIDTH/7,((this._maxInputNum-Math.max(e.outputNum, e.inputNum))/2)/(this._maxInputNum)*(HEIGHT*5/7)+HEIGHT/7);
+							ctx.lineTo((n+1)/(arr.length)*(WIDTH*5/7)+WIDTH/7,(j+(this._maxInputNum-e.outputNum+1)/2)/(this._maxInputNum)*(HEIGHT*5/7)+HEIGHT/7);
+							ctx.closePath();
+							ctx.stroke();
+						}
+					}
+				});
+				neuralNet.layers.forEach((e, n, arr) => {
+					ctx.fillStyle = "white"
+					ctx.strokeStyle = "black";
+					ctx.lineWidth = 1;
+					ctx.beginPath();
+					ctx.arc((n+0.5)/(arr.length)*(WIDTH*5/7)+WIDTH/7,((this._maxInputNum-Math.max(e.outputNum, e.inputNum))/2)/(this._maxInputNum)*(HEIGHT*5/7)+HEIGHT/7, 5, 0, Math.PI*2);
+					ctx.closePath();
+					ctx.fill();
+					ctx.stroke();
+					if (n==0) {
+						for (let i=0;i<e.inputNum;i++) {
+							ctx.beginPath();
+							ctx.arc((n)/(arr.length)*(WIDTH*5/7)+WIDTH/7,(i +(this._maxInputNum-e.inputNum+1)/2)/(this._maxInputNum	)*(HEIGHT*5/7)+HEIGHT/7, 5, 0, Math.PI*2);
+							ctx.closePath();
+							ctx.fill();
+							ctx.stroke();
+						}
+					} 
+					for (let j=0;j<e.outputNum;j++) {
+						ctx.beginPath();
+						ctx.arc((n+1)/(arr.length)*(WIDTH*5/7)+WIDTH/7,(j+(this._maxInputNum-e.outputNum+1)/2)/(this._maxInputNum)*(HEIGHT*5/7)+HEIGHT/7, 5, 0, Math.PI*2);
+						ctx.closePath();
+						ctx.fill();
+						ctx.stroke();
+					}
+				});
+			}
+		}
+
+		let canvas = document.createElement("canvas");
+		let ctx = canvas.getContext("2d");
+
+		let neuralNet;
+
+		const WIDTH = 800;
+		const HEIGHT = 600;
+
+		canvas.setAttribute("width", WIDTH);
+		canvas.setAttribute("height", HEIGHT);
+		document.body.append(canvas);
+
+		window.onload = function() {
+			initData();
+			init();
+			render();
+		}
+
+		let x_data = [];
+		let y_data = [];
+
+		let test_data = [];
+
+		let learning_fontName = ["AppleSDGothicNeo-UltraLight", "AppleSymbols", "AppleGothic", "AppleMyungjo", "AdobeGothicStd-Bold", "AdobeMyungjoStd-Medium", "SignPainter-HouseScript", "PTMono-Regular"];
+		let test_fontName = ["NanumGothic", "NanumMyeongjo", "NanumBarunpen", "NanumSquareL"];
+
+
+		function initData() {
+			let canvas = document.createElement("canvas");
+			let ctx = canvas.getContext("2d");
+
+			//document.body.append(canvas);
+
+			canvas.setAttribute("width", 7);
+			canvas.setAttribute("height", 9);
+			canvas.setAttribute("style", "width:350px; height:450px;");
+			for (let i=0;i<learning_fontName.length*5;i++) {
+				ctx.font = (i%4+8) + "px " + learning_fontName[Math.floor(i/5)];
+				ctx.textAlign = "center";
+				ctx.textBaseline = "middle";
+				for (let j=0;j<10;j++) {
+					ctx.clearRect(0,0,7,9);
+					ctx.fillText(j, 4, 5);
+
+					let data = ctx.getImageData(0, 0, 7, 9);
+					let arr = [];
+					let arr2 = [];
+					for (let k=0;k<data.data.length;k+=4) {
+						arr.push(data.data[k+3]/255);
+					}
+					for (let k=0;k<10;k++) {
+						arr2.push(k==j?1:0);
+					}
+					normalize(arr, 7, 9);
+					x_data.push(arr);
+					y_data.push(arr2);
+				}
+			}
+
+			for (let i=0;i<test_fontName.length;i++) {
+				ctx.font = "9px " + test_fontName[i];
+				ctx.textAlign = "center";
+				ctx.textBaseline = "middle";
+				for (let j=0;j<10;j++) {
+					ctx.clearRect(0,0,7,9);
+					ctx.fillText(j, 4, 5);
+
+					let data = ctx.getImageData(0, 0, 7, 9);
+					let arr = [];
+					for (let k=0;k<data.data.length;k+=4) {
+						arr.push(data.data[k+3]/255);
+					}
+					normalize(arr, 7, 9);
+					test_data.push(arr);
+				}
+			}
+		}
+
+		function normalize(arr, width, height) {
+			let original_data = arr.slice();
+
+			let start_x=Infinity;
+			let end_x=-Infinity;
+
+			let start_y=Infinity;
+			let end_y=-Infinity;
+
+			for (let i=0;i<height;i++) {
+				for (let j=0;j<width;j++) {
+					if (original_data[i*width+j] != 0) {
+						start_x = Math.min(start_x, j);
+						end_x = Math.max(end_x, j);
+						start_y = Math.min(start_y, i);
+						end_y = Math.max(end_y, i);
+					}
+				}
+			}
+
+			for (let i=0;i<height;i++) {
+				for (let j=0;j<width;j++) {
+					arr[i*width+j] = original_data[Math.round((i/height)*(end_y-start_y+1)+start_y)*width+Math.round((j/width)*(end_x-start_x+1)+start_x)];
+				}
+			}
+		}
+
+		function init() {
+
+
+			neuralNet = new NeuralNet([7*9, 5, 5, 10], x_data, y_data);
+			neuralNet.layers[neuralNet.layers.length-1].hypothesisFunction = softmax;
+			neuralNet.input = x_data;
+		}
+
+		function render() {
+			ctx.clearRect(0, 0, WIDTH, HEIGHT);
+			neuralNet.render();
+
+			let arr = [];
+
+			for (let i=0;i<test_data.length/10;i++) {
+				ctx.fillStyle = "black";
+				ctx.font = "12px " + test_fontName[i];
+				ctx.fillText("0123456789",5,i*130+15);
+
+				for (let j=0;j<10;j++) {
+					arr.push(neuralNet.calc(test_data)[i*10+j]);
+					for (let k=0;k<10;k++) {
+						ctx.fillStyle = "rgba(0, 0, 0, " + Math.round(arr[i*10+j][k]*1000)/1000 + ")";
+						ctx.fillRect(10*k + 5, 10*(i*13+j)+20, 10, 10);
+					}
+				}
+			}
+
+			for (let i=0;i<test_data.length/10;i++) {
+				for (let j=0;j<10;j++) {
+					one_hot_encoding(arr[i*10+j]);
+					for (let k=0;k<10;k++) {
+						ctx.lineWidth = 2;
+						ctx.strokeStyle = "rgba(0, 0, 0, " + arr[i*10+j][k] + ")";
+						ctx.strokeRect(10*k + 5, 10*(i*13+j)+20, 10, 10);
+					}
+				}
+			}
+
+			for (let i=0;i<10;i++) {
+				neuralNet.train(1);
+			}
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>

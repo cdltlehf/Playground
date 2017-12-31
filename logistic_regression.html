@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Logistic_regression</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<div id="canvas_container"></div>
+	<script type="text/javascript">
+
+		function random_normal(shape, mean=0.0, stddev=1.0) {
+			if (shape.length==0) {
+    		var u = 1 - Math.random();
+    		var v = 1 - Math.random();
+    		return (Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v ))*stddev + mean;
+			} else {
+				var arr = []
+				for (let i = 0; i<shape[0]; i++) {
+					arr.push(random_normal(shape.slice(1),mean,stddev));
+				}
+				return arr;
+			}
+		}
+
+		function sigmoid(x) {
+			return 1/(1 + Math.exp(-x));
+		}
+
+		function matmul(a, b) {
+  		var aNumRows = a.length, aNumCols = a[0].length,
+      		bNumRows = b.length, bNumCols = b[0].length,
+      		m = new Array(aNumRows);  // initialize array of rows
+  		for (var r = 0; r < aNumRows; ++r) {
+    		m[r] = new Array(bNumCols); // initialize the current row
+    		for (var c = 0; c < bNumCols; ++c) {
+      		m[r][c] = 0;             // initialize the current cell
+      		for (var i = 0; i < aNumCols; ++i) {
+        		m[r][c] += a[r][i] * b[i][c];
+      		}
+    		}
+  		}
+  		return m;
+		}
+
+		let canvas = document.createElement("canvas");
+		let ctx = canvas.getContext("2d");
+
+		const WIDTH = 800;
+		const HEIGHT = 600;
+
+		canvas.setAttribute("width", WIDTH);
+		canvas.setAttribute("height", HEIGHT);
+		document.body.append(canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		let N = 1000; //only even number
+
+		//let x_data = [[1, 2], [2, 3], [3, 1], [4, 3], [5, 3], [6, 2]];
+		//let y_data = [[0], [0], [0], [1], [1], [1]];
+		let x_data = [];
+		let y_data = [];
+
+		let c1 = [Math.random()-0.5, Math.random()-0.5];
+		for (let i=0;i<N/2;i++) {
+			let r = random_normal([], 0, 0.1);
+			let theta = Math.random() * Math.PI * 2;
+			x_data.push([c1[0] + r*Math.cos(theta), c1[1] + r*Math.sin(theta)])
+			y_data.push([1]);
+		}
+
+		let c2 = [Math.random()-0.5, Math.random()-0.5];
+		for (let i=0;i<N/2;i++) {
+			let r = random_normal([], 0, 0.1);
+			let theta = Math.random() * Math.PI * 2;
+			x_data.push([c2[0] + r*Math.cos(theta), c2[1] + r*Math.sin(theta)])
+			y_data.push([0]);
+		}
+
+		let X = x_data.slice(); // [N, 2]
+		let Y = y_data.slice(); // [N, 1]
+		let W = [[0], [0]]; // [2, 1]
+		let b = [0]; // [1]
+
+		let hypothesis = () => {
+			let arr = matmul(X, W);
+			for (let i=0;i<arr.length;i++) {
+				arr[i] = [sigmoid(arr[i][0] + b[0])];
+			}
+			return arr;
+		}; // [N, 1]
+		let cost = () => {
+			let sum = 0;
+			let h = hypothesis();
+			for (let i=0;i<N;i++) {
+				sum += -Y[i][0] * Math.log(h[i][0]) - (1-Y[i][0]) * Math.log(1 - h[i][0]);
+			}
+			return [sum/N];
+		}; // [1];
+		let cost_d_by_Wi0 = (i) => {
+			let sum = 0;
+			let h = hypothesis();
+			for (let j=0;j<N;j++) {
+				sum += X[j][i] * (h[j][0] - Y[j][0]);
+			}
+			return sum/N;
+		};
+		let cost_d_by_b = () => {
+			let sum = 0;
+			let h = hypothesis();
+			for (let j=0;j<N;j++) {
+				sum += (h[j][0] - Y[j][0]);
+			}
+			return sum/N;
+		};
+		function train(learning_rate) {
+			for (let i=0; i<W.length; i++) {
+				W[i][0] -= learning_rate * cost_d_by_Wi0(i);
+			}
+			b[0] -= learning_rate * cost_d_by_b();
+		}
+
+		function init() {
+		}
+
+		function render() {
+			ctx.fillStyle = "#eeeef5";
+			ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+			ctx.strokeStyle = "white";
+			ctx.beginPath();
+			ctx.moveTo(0, HEIGHT/2);
+			ctx.lineTo(WIDTH, HEIGHT/2);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.beginPath();
+			ctx.moveTo(WIDTH/2, 0);
+			ctx.lineTo(WIDTH/2, HEIGHT);
+			ctx.closePath();
+			ctx.stroke();
+
+			for (let i=0;i<N;i++) {
+				ctx.beginPath();
+				ctx.arc((x_data[i][0])*WIDTH/2 + WIDTH/2,(-x_data[i][1])*WIDTH/2 + HEIGHT/2,1.5,0,Math.PI*2);
+				ctx.closePath();
+				ctx.fillStyle = y_data[i]==0?"red":"blue";
+				ctx.fill();
+			}
+
+			ctx.strokeStyle = "grey";
+			ctx.beginPath();
+
+			// -b + w1 = w2*x2
+			ctx.moveTo(0, -((-b[0]+W[0][0])/W[1][0])*WIDTH/2 + HEIGHT/2);
+
+			// -b = w1 + w2*x2
+		  ctx.lineTo(WIDTH, -((-b[0]-W[0][0])/W[1][0])*WIDTH/2 + HEIGHT/2);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+			ctx.fillRect(0, 0, 100, 30);
+
+			ctx.fillStyle = "black";
+			ctx.font="15px Roboto";
+			ctx.fillText("cost : " + Math.floor(cost()[0] * 100)/100, 10, 20);
+			for (let i = 0; i < 20; i++) {
+				train(0.01);
+			}
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>

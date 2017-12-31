@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Untitled_2</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<script src="./lib/playground.js"></script>
+	<script type="text/javascript">
+
+		var scene = new Scene(800, 600);
+
+		document.body.appendChild(scene.canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		var field;
+		var n = 1;
+
+		function init() {
+			value = (new VectorField(800, 600)).setValue((p) => new Vector((p.x-400)/400, (p.y-300)/400)).value;
+			field = new FieldNode(new ScalarField(800, 600));
+			field.field.setValue((p) => {
+				let x = value[p.y][p.x].x;
+				let y = value[p.y][p.x].y;
+				return x*y*y/(x*x+y*y)*10;
+			})
+			field2 = new FieldNode(new ScalarField(800, 600));
+			field2.field.setValue((p) => {
+				let x = value[p.y][p.x].x;
+				let y = value[p.y][p.x].y;
+				return x+1/200>y*y&&y*y>x?-1:1;
+			});
+			field2.field.setValue((p) => {
+				let x = value[p.y][p.x].x;
+				let y = value[p.y][p.x].y;
+				return x>field.field.value[Math.floor(y*400+300)][Math.floor((n*y*y)*400+400)]?-1:1;
+			});
+			scene.addChild(field)
+			//scene.addChild(field2)
+		}
+
+		function render() {
+			scene.update();
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>

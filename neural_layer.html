@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Neural Layer</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<div id="canvas_container"></div>
+	<script type="text/javascript">
+
+		function random_normal(shape, mean=0.0, stddev=1.0) {
+			if (shape.length==0) {
+    		var u = 1 - Math.random();
+    		var v = 1 - Math.random();
+    		return (Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v ))*stddev + mean;
+			} else {
+				var arr = []
+				for (let i = 0; i<shape[0]; i++) {
+					arr.push(random_normal(shape.slice(1),mean,stddev));
+				}
+				return arr;
+			}
+		}
+
+		function ones(shape) {
+			if (shape.length==0) {
+    		return 1;
+			} else {
+				var arr = []
+				for (let i = 0; i<shape[0]; i++) {
+					arr.push(ones(shape.slice(1)));
+				}
+				return arr;
+			}
+		}
+
+		function zeros(shape) {
+			if (shape.length==0) {
+    		return 0;
+			} else {
+				var arr = []
+				for (let i = 0; i<shape[0]; i++) {
+					arr.push(zeros(shape.slice(1)));
+				}
+				return arr;
+			}
+		}
+
+		function sigmoid(i_arr) {
+			if (!Array.isArray(i_arr)) {
+				return 1/(1 + Math.exp(-i_arr));
+			} else {
+				let o_arr = [];
+				for (let i=0;i<i_arr.length;i++) {
+					o_arr.push(sigmoid(i_arr[i]));
+				}
+				return o_arr;
+			}
+		}
+
+		function softmax(i_arr) {
+			let o_arr = [];
+			let sum = 0;
+			let max = -Infinity;
+			for (let i=0;i<i_arr.length;i++) {
+				if (max < i_arr[i]) {max = i_arr[i]};
+			}
+			for (let i=0;i<i_arr.length;i++) {
+				o_arr.push(Math.exp(i_arr[i] - max));
+				sum += o_arr[i]
+			}
+			for (let i=0;i<i_arr.length;i++) {
+				o_arr[i] /= sum;
+			}
+			return o_arr;
+		}
+
+		function matmul(a, b) {
+  		var aNumRows = a.length, aNumCols = a[0].length,
+      		bNumRows = b.length, bNumCols = b[0].length,
+      		m = new Array(aNumRows);  // initialize array of rows
+  		for (var r = 0; r < aNumRows; ++r) {
+    		m[r] = new Array(bNumCols); // initialize the current row
+    		for (var c = 0; c < bNumCols; ++c) {
+      		m[r][c] = 0;             // initialize the current cell
+      		for (var i = 0; i < aNumCols; ++i) {
+        		m[r][c] += a[r][i] * b[i][c];
+      		}
+    		}
+  		}
+  		return m;
+		}
+
+		function one_hot_encoding(arr) {
+			let max = -Infinity;
+			let flag = true;
+			for (let i=0;i<arr.length;i++) {
+				if (max < arr[i]) {max = i_arr[i]};
+			}
+			for (let i=0;i<arr.length;i++) {
+				if (max == arr[i] && flag) {
+					arr[i] = 1;
+					flag = false;
+				} else {
+					arr[i] = 0;
+				}
+			}
+			return arr;
+		}
+
+		class NeuralLayer {
+			constructor (inputNum, outputNum, hypothesisFunction = sigmoid) {
+				this.inputNum = inputNum;
+				this.outputNum = outputNum;
+				this.hypothesisFunction = hypothesisFunction;
+
+				this.W = ones([inputNum, outputNum]);
+				this.b = zeros([outputNum]);
+
+				this.gradient_W = zeros([inputNum,outputNum]);
+				this.gradient_b = zeros([outputNum]);
+
+				this.input = [[]];
+			}
+
+			get hypothesis() {
+				let arr = matmul(this.input, this.W);
+				let out = [];
+
+				for (let i=0;i<this.input.length;i++) {
+					for (let j=0;j<this.outputNum;j++) {
+						arr[i][j] += this.b[j];
+					}
+					out.push(this.hypothesisFunction(arr[i]));
+				}
+				return out;
+			}
+
+			get cost() {
+				let arr = [];
+				let h = hypothesis.splice();
+				let sum = 0;
+				for (let i=0;i<this.input.length;i++) {
+					for (let j=0;j<this.outputNum;j++) {
+						sum += -Y[i][j] * Math.log(h[i][j]) - (1-Y[i][j]) * Math.log(1 - h[i][j]);
+					}
+				}
+				return sum/this.input.length;
+			}
+
+			get cost_d_by_W() {
+				let h = this.hypothesis;
+				let arr = [];
+				for (let n=0;n<this.inputNum;n++) {
+					let arr2 = [];
+					for (let j=0;j<this.outputNum;j++) {
+						let sum = 0;
+						for (let i=0;i<this.input.length;i++) {
+							sum += this.input[i][n] * (h[i][j] - y_data[i][j]);
+						}
+						arr2.push(sum/this.input.length);
+					}
+					arr.push(arr2);
+				}
+				return arr;
+			}
+
+			get cost_d_by_b() {
+				let h = this.hypothesis;
+				let arr = [];
+				for (let j=0;j<this.outputNum;j++) {
+					let sum = 0;
+					for (let i=0;i<this.input.length;i++) {
+						sum += h[i][j] - y_data[i][j];
+					}
+					arr.push(sum/this.input.length);
+				}
+				return arr;
+			}
+
+			train (learning_rate) {
+				this.gradient_W = this.cost_d_by_W.slice();
+				this.gradient_b = this.cost_d_by_b.slice();
+
+				for (let j=0; j<this.outputNum;j++) {
+					for (let i=0; i<this.inputNum; i++) {
+						this.W[i][j] -= learning_rate * this.gradient_W[i][j];
+					}
+					this.b[j] -= learning_rate * this.gradient_b[j];
+				}
+			}
+		}
+
+		let canvas = document.createElement("canvas");
+		let ctx = canvas.getContext("2d");
+
+		let neuralNet = [];
+
+		const WIDTH = 800;
+		const HEIGHT = 600;
+
+		canvas.setAttribute("width", WIDTH);
+		canvas.setAttribute("height", HEIGHT);
+		document.body.append(canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		let x_data = [[0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1], 
+									[1, 0, 0], [1, 0, 1], [1, 1, 0], [1, 1, 1]];
+		let y_data = [[0], [1], [-1], [0],
+									[1], [2], [0], [1]];
+
+		function init() {
+			neuralNet.push(new NeuralLayer(3, 1));
+			neuralNet[0].input = x_data;
+		}
+
+		function render() {
+			ctx.clearRect(0, 0, WIDTH, HEIGHT);
+			neuralNet.forEach((e, n, arr) => {
+				for (let i=0;i<e.inputNum;i++) {
+					for (let j=0;j<e.outputNum;j++) {
+						if (e.W[i][j] != 0) {
+							ctx.strokeStyle = e.W[i][j]>0?"blue":"red";
+							ctx.lineWidth = Math.log(Math.abs(e.W[i][j]) + 1);
+							ctx.beginPath();
+							ctx.moveTo(n/(arr.length)*(WIDTH*5/7)+WIDTH/7,((i-e.inputNum/2)*100) + HEIGHT/2);
+							ctx.lineTo((n+1)/(arr.length)*(WIDTH*5/7)+WIDTH/7,((j-e.outputNum/2)*100) + HEIGHT/2);
+							ctx.closePath();
+							ctx.stroke();
+						}
+					}
+				}
+				for (let j=0;j<e.outputNum;j++) {
+					if (e.b[j] != 0) {
+						ctx.strokeStyle = e.b[j]>0?"blue":"red";
+						ctx.lineWidth = Math.log(Math.abs(e.b[j]) + 1);
+						ctx.beginPath();
+						ctx.moveTo((n+0.5)/(arr.length)*(WIDTH*5/7)+WIDTH/7,((-0.5-e.outputNum/2)*100) + HEIGHT/2);
+						ctx.lineTo((n+1)/(arr.length)*(WIDTH*5/7)+WIDTH/7,((j-e.outputNum/2)*100) + HEIGHT/2);
+						ctx.closePath();
+						ctx.stroke();
+					}
+				}
+			})
+			neuralNet[0].train(0.1);
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>

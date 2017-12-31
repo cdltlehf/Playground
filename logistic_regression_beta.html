@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Logistic_regression</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<div id="canvas_container"></div>
+	<script type="text/javascript">
+
+		function randn_bm() {
+    	var u = 1 - Math.random(); // Subtraction to flip [0, 1) to (0, 1].
+    	var v = 1 - Math.random();
+    	return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+		}
+
+		let canvas = document.createElement("canvas");
+		let ctx = canvas.getContext("2d");
+
+		const WIDTH = 800;
+		const HEIGHT = 600;
+
+		canvas.setAttribute("width", WIDTH);
+		canvas.setAttribute("height", HEIGHT);
+		document.body.append(canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		let W = 0;
+		let b = 0;
+
+		let X = [];
+		let Y = [];
+
+		for(let i=0;i<10;i++) {
+			x = randn_bm()/4;
+			y = x>0?0:1;
+			X.push(x);
+			Y.push(y);
+		}
+
+		function sigmoid(x) {
+			return 1/(1 + Math.exp(-x));
+		}
+
+		let hypothesis = (() => {
+			let arr = []
+			X.forEach((e) => {arr.push(sigmoid(e * W + b))});
+			return arr;
+		});
+		let cost = (() => {
+			let sum = 0;
+			hypothesis().forEach((e, i) => {
+				sum += -Y[i] * Math.log(e) - (1-Y[i]) * Math.log(1 - e);
+			});
+			return sum/hypothesis().length;
+		});
+		let cost_d_by_W = (() => {
+			let sum = 0;
+			hypothesis().forEach((e, i) => {
+				sum += X[i] * (e - Y[i]);
+			});
+			return sum/hypothesis().length;
+		});
+		let cost_d_by_b = (() => {
+			let sum = 0;
+			hypothesis().forEach((e, i) => {
+				sum += (e - Y[i]);
+			});
+			return sum/hypothesis().length;
+		});
+		function train(learning_rate) {
+			W = W - learning_rate * cost_d_by_W();
+			b = b - learning_rate * cost_d_by_b();
+		}
+
+		function init() {
+		}
+
+		function render() {
+			ctx.fillStyle = "#eeeef5";
+			ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+			ctx.strokeStyle = "white";
+			ctx.beginPath();
+			ctx.moveTo(0, HEIGHT*0.9);
+			ctx.lineTo(WIDTH, HEIGHT*0.9);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.strokeStyle = "white";
+			ctx.beginPath();
+			ctx.moveTo(0, HEIGHT*0.5);
+			ctx.lineTo(WIDTH, HEIGHT*0.5);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.beginPath();
+			ctx.moveTo(WIDTH/2, 0);
+			ctx.lineTo(WIDTH/2, HEIGHT);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.beginPath();
+			ctx.moveTo(((0 - b)/W)*WIDTH/2+WIDTH/2, 0);
+			ctx.lineTo(((0 - b)/W)*WIDTH/2+WIDTH/2, HEIGHT);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.strokeStyle = "blue";
+			ctx.beginPath();
+			for (let i=0;i<=100;i++) {
+				let x = i/50-1;
+				let y = sigmoid(x * W + b);
+				if (i==0) ctx.moveTo((x*WIDTH/2)+WIDTH/2, (-y*HEIGHT*0.8)+HEIGHT*0.9);
+				else ctx.lineTo((x*WIDTH/2)+WIDTH/2, (-y*HEIGHT*0.8)+HEIGHT*0.9);	
+			}
+			ctx.stroke();
+
+			ctx.fillStyle = "red";
+			X.forEach((e, i) => {
+				ctx.beginPath();
+				ctx.arc((e*HEIGHT/2)+WIDTH/2, (-Y[i]*HEIGHT*0.8)+HEIGHT*0.9, 1.5, 0, Math.PI*2)
+				ctx.closePath();
+				ctx.fill();
+			})
+
+			ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+			ctx.fillRect(0, 0, 300, 90);
+
+			ctx.fillStyle = "black";
+			ctx.font="15px Roboto";
+			ctx.fillText("cost : " + Math.floor(cost() * 100)/100, 10, 20);
+
+			for (let i = 0; i < 20; i++) {
+				train(0.01);
+			}
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Linear_regression</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<div id="canvas_container"></div>
+	<script type="text/javascript">
+
+		function randn_bm() {
+    	var u = 1 - Math.random(); // Subtraction to flip [0, 1) to (0, 1].
+    	var v = 1 - Math.random();
+    	return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+		}
+
+		let canvas = document.createElement("canvas");
+		let ctx = canvas.getContext("2d");
+
+		const WIDTH = 800;
+		const HEIGHT = 600;
+
+		canvas.setAttribute("width", WIDTH);
+		canvas.setAttribute("height", HEIGHT);
+		document.body.append(canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		let N = 5;
+
+		let W_goal = []
+		for (let i=0;i<=N;i++) {
+			W_goal.push(Math.floor((Math.random() - 0.5)*100)/100);
+		}
+
+		let W = []
+		for (let i=0;i<=N;i++) {
+			W.push(0);
+		}
+
+		let X = [];
+		let Y = [];
+
+		for(let i=0;i<3000;i++) {
+			x = randn_bm()/4;
+			y = 0;
+			for (let j=0;j<=N;j++) {
+				y +=  W_goal[j] * Math.pow(x, j);
+			}
+			y += randn_bm()/10;
+			X.push(x);
+			Y.push(y);
+		}
+
+		let hypothesis = (() => {
+			let arr = []
+			X.forEach((e) => {
+				let y = 0;
+				for (let j=0;j<=N;j++) {
+					y +=  W[j] * Math.pow(e, j);
+				}
+				arr.push(y)
+			});
+			return arr;
+		});
+		let cost = (() => {
+			let sum = 0;
+			hypothesis().forEach((e, i) => {sum += Math.pow(e - Y[i],2)});
+			return sum/hypothesis().length;
+		});
+		let cost_d_by_Wi = ((i) => {
+			let sum = 0;
+			hypothesis().forEach((e, n) => {sum += (e - Y[n]) * Math.pow(X[n], i)});
+			return 2 * sum/hypothesis().length;
+		});
+		function train(learning_rate) {
+			for (let i=0;i<=N;i++) {
+				W[i] = W[i] - learning_rate * cost_d_by_Wi(i);
+			}
+		}
+
+		function init() {
+		}
+
+		function render() {
+			ctx.fillStyle = "#eeeef5";
+			ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+			ctx.strokeStyle = "white";
+			ctx.beginPath();
+			ctx.moveTo(0, HEIGHT/2);
+			ctx.lineTo(WIDTH, HEIGHT/2);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.beginPath();
+			ctx.moveTo(WIDTH/2, 0);
+			ctx.lineTo(WIDTH/2, HEIGHT);
+			ctx.closePath();
+			ctx.stroke();
+
+			ctx.fillStyle = "red";
+			X.forEach((e, i) => {
+				ctx.beginPath();
+				ctx.arc((e*WIDTH/2)+WIDTH/2, (-Y[i]*WIDTH/2)+HEIGHT/2, 1.5, 0, Math.PI*2)
+				ctx.closePath();
+				ctx.fill();
+			})
+
+			ctx.strokeStyle = "blue";
+			ctx.beginPath();
+			for (let i=0;i<=100;i++) {
+				let x = i/50-1;
+				let y = 0;
+				for (let j=0;j<=N;j++) {
+					y +=  W[j] * Math.pow(x, j);
+				}
+				if (i==0) ctx.moveTo((x*WIDTH/2)+WIDTH/2, (-y*WIDTH/2)+HEIGHT/2);
+				else ctx.lineTo((x*WIDTH/2)+WIDTH/2, (-y*WIDTH/2)+HEIGHT/2);	
+			}
+			ctx.stroke();
+
+			ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+			ctx.fillRect(0, 0, WIDTH, 50);
+
+			ctx.fillStyle = "black";
+			ctx.font="15px Roboto";
+			ctx.fillText((() => {
+				let string = "y = "; 
+				for(i=N;i>=0;i--){
+					string += Math.round(W_goal[i]*100)/100 + "x^" + i;
+					if (i!=0) string += " + ";
+				}
+				return string;
+			})(), 10, 20);
+			ctx.fillText((() => {
+				let string = "y = "; 
+				for(i=N;i>=0;i--){
+					string += Math.round(W[i]*100)/100 + "x^" + i;
+					if (i!=0) string += " + ";
+				}
+				return string;
+			})(), 10, 40);
+
+			for (let i = 0; i < 20; i++) {
+				train(0.1);
+			}
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Untitled_4</title>
+	<meta charset="utf-8">
+	<style>
+		body {
+			background-color: #323232;
+		}
+		canvas {
+			position: absolute;
+			left: 50%;
+			top:50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+		}
+	</style>
+</head>
+<body>
+	<script src="./lib/playground.js"></script>
+	<script type="text/javascript">
+
+		var scene = new Scene(800, 600);
+
+		let mass1, mass2, point1, point2;
+
+		document.body.appendChild(scene.canvas);
+
+		window.onload = function() {
+			init();
+			render();
+		}
+
+		function drawSpring(x1, x2, y, n, ctx) {
+			ctx.strokeStyle = "grey";
+			let points = []
+			for (let i=0;i<=n;i++) {
+				points.push((x1*i + x2*(n-i))/n);
+			}
+			ctx.beginPath();
+			ctx.moveTo(points[0], y);
+			ctx.lineTo(points[1], y);
+			for (let i=2;i<n-1;i++) {
+				ctx.lineTo(points[i], y+((i%2)==0?5:-5));
+			}
+			ctx.lineTo(points[n-1], y);
+			ctx.lineTo(points[n], y);
+			ctx.stroke();
+		}
+
+		function init() {
+			mass1 = new ShapeNode(new Circle(10));
+			mass2 = new ShapeNode(new Circle(10));
+			mass1.setPosition(800*2/6, 300);
+			mass2.setPosition(800*4/6, 300);
+			mass1.setPhysicsBody(new PhysicsBody(mass1.shape));
+			mass2.setPhysicsBody(new PhysicsBody(mass2.shape));
+
+			point1 = new ShapeNode(new Rectangle(3, 500));
+			point2 = new ShapeNode(new Rectangle(3, 500));
+			point1.setPosition(800*1/6, 300);
+			point2.setPosition(800*5/6, 300);
+
+			scene.addChild(mass1);
+			scene.addChild(mass2);
+			scene.addChild(point1);
+			scene.addChild(point2);
+			mass1.position.sub(new Vector(50, 0));
+		}
+
+		function render() {
+
+			mass1.physicsBody.applyForce(point1.position.clone().add(new Vector(800*1/6, 0)).sub(mass1.position).multiplyScalar(1000));
+			mass2.physicsBody.applyForce(point2.position.clone().sub(new Vector(800*1/6, 0)).sub(mass2.position).multiplyScalar(1000));
+
+			mass1.physicsBody.applyForce(mass2.position.clone().sub(new Vector(800*2/6, 0)).sub(mass1.position).multiplyScalar(100));
+			mass2.physicsBody.applyForce(mass1.position.clone().add(new Vector(800*2/6, 0)).sub(mass2.position).multiplyScalar(100));
+
+			scene.update();
+			drawSpring(point1.position.x+1.5, mass1.position.x-10, 300, 20, scene.ctx);
+			drawSpring(mass1.position.x+10, mass2.position.x-10, 300, 40, scene.ctx);
+			drawSpring(point2.position.x+1.5, mass2.position.x+10, 300, 20, scene.ctx);
+
+			window.requestAnimationFrame(render);
+		}
+	</script>
+</body>
+</html>
